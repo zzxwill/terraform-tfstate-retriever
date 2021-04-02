@@ -13,17 +13,15 @@ spec:
         name: poc
     spec:
       containers:
-        #      - command:
-        #        - bash
-        #        - -c
-        #        - tail -f /dev/null
-      - env:
-        - name: CONFIGMAPS_NAMESPACE
-          value: default
-        - name: CONFIGMAPS_NAME
-          value: aliyun-oss-tf-state
-        - name: TF_STATE_DIR
-          value: /data/tfstate
-        image: zzxwill/terraform-tfstate-retriever:v0.1
-        imagePullPolicy: Always
-        name: terraform-tfstate-retriever
+        - env:
+            - name: CONFIGMAPS_NAMESPACE
+              value: default
+            - name: CONFIGMAPS_NAME
+              value: aliyun-oss-tf-state
+            - name: TF_STATE_DIR
+              value: /go/src/app
+            - name: TF_STATE_NAME
+              value: go.mod
+          image: zzxwill/terraform-tfstate-retriever:v0.1
+          imagePullPolicy: Always
+          name: terraform-tfstate-retriever

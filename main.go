@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,6 +19,7 @@ const (
 	Namespace             = "CONFIGMAPS_NAMESPACE"
 	TFStateConfigMapsName = "CONFIGMAPS_NAME"
 	TFStateDir            = "TF_STATE_DIR"
+	TFStateName           = "TF_STATE_NAME"
 )
 
 const TerraformStateName = "terraform.tfstate"
@@ -27,6 +29,7 @@ func main() {
 		namespace             = os.Getenv(Namespace)
 		tfStateConfigMapsName = os.Getenv(TFStateConfigMapsName)
 		tfStateDir            = os.Getenv(TFStateDir)
+		tfStateName           = os.Getenv(TFStateName)
 	)
 	if namespace == "" {
 		namespace = "default"
@@ -38,6 +41,10 @@ func main() {
 
 	if tfStateDir == "" {
 		tfStateDir = "/data/tfstate"
+	}
+
+	if tfStateName == "" {
+		tfStateName = TerraformStateName
 	}
 	ctx := context.Background()
 
@@ -58,47 +65,37 @@ func main() {
 		ObjectMeta: metav1.ObjectMeta{Name: tfStateConfigMapsName, Namespace: namespace},
 	}
 
-	for {
-		fmt.Printf("checking whether %s is ready in %s\n", TerraformStateName, tfStateDir)
-		files, err := ioutil.ReadDir(tfStateDir)
-		if err != nil {
-			fmt.Printf("failed to read directory %s: %v\n", tfStateDir, err)
-		}
-		var existed bool
-		for _, f := range files {
-			if f.Name() == TerraformStateName {
-				existed = true
-				fmt.Printf("%s is ready in %s", TerraformStateName, tfStateDir)
-				break
-			}
-		}
+	tfStateFile := filepath.Join(tfStateDir, tfStateName)
 
-		if existed {
-			state, err := ioutil.ReadFile(filepath.Join(tfStateDir, TerraformStateName))
-			if err != nil {
-				fmt.Println(err.Error())
-				break
-			}
-			tfStateCM.Data = map[string]string{TerraformStateName: string(state)}
-			existedCM, err := clientSet.CoreV1().ConfigMaps(namespace).Get(ctx, tfStateConfigMapsName, metav1.GetOptions{})
-			if err != nil {
-				if kerrors.IsNotFound(err) {
-					fmt.Printf("ConfigMaps %s doesn't exist, trying to create it\n", tfStateConfigMapsName)
-					if _, err := clientSet.CoreV1().ConfigMaps(namespace).Create(ctx, &tfStateCM, metav1.CreateOptions{}); err != nil {
-						fmt.Println(err.Error())
-						break
-					}
-				}
-				fmt.Println(err.Error())
-				break
-			}
-			existedCM.Data = map[string]string{TerraformStateName: string(state)}
-			fmt.Printf("ConfigMaps %s exists, trying to update it\n", tfStateConfigMapsName)
-			if _, err := clientSet.CoreV1().ConfigMaps(namespace).Update(ctx, &tfStateCM, metav1.UpdateOptions{}); err != nil {
-				fmt.Println(err.Error())
-				break
-			}
-			break
+	for {
+		time.Sleep(5)
+		fmt.Printf("checking file %s\n", tfStateFile)
+		state, err := ioutil.ReadFile(tfStateFile)
+		if err != nil {
+			fmt.Println(err.Error())
+			continue
 		}
+		tfStateCM.Data = map[string]string{TerraformStateName: string(state)}
+		existedCM, err := clientSet.CoreV1().ConfigMaps(namespace).Get(ctx, tfStateConfigMapsName, metav1.GetOptions{})
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				fmt.Printf("ConfigMaps %s doesn't exist, trying to create it\n", tfStateConfigMapsName)
+				if _, err := clientSet.CoreV1().ConfigMaps(namespace).Create(ctx, &tfStateCM, metav1.CreateOptions{}); err != nil {
+					fmt.Println(err.Error())
+					continue
+				}
+				break
+			}
+			fmt.Println(err.Error())
+			continue
+		}
+		existedCM.Data = map[string]string{TerraformStateName: string(state)}
+		fmt.Printf("ConfigMaps %s exists, trying to update it\n", tfStateConfigMapsName)
+		if _, err := clientSet.CoreV1().ConfigMaps(namespace).Update(ctx, &tfStateCM, metav1.UpdateOptions{}); err != nil {
+			fmt.Println(err.Error())
+			continue
+		}
+		break
 	}
+
 }

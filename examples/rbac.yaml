@@ -14,7 +14,7 @@ rules:
   - apiGroups:
     - ""
     resources:
-    - ConfigMaps
+    - "configmaps"
     verbs:
     - "create"
     - "update"

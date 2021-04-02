@@ -21,7 +21,12 @@ Terraform state file name
 
 ## Build image
 
+
 ```shell
+# It's so slow to build binary in the docker, so build it locally
+$ GOOS=linux go build -o ./terraform-tfstate-retriever .
+
+
 $ docker build -t zzxwill/terraform-tfstate-retriever:v0.1 .
 
 $ docker push zzxwill/terraform-tfstate-retriever:v0.1

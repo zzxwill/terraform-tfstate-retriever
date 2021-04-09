@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"os"
 	"path/filepath"
 	"time"
@@ -16,10 +18,14 @@ import (
 )
 
 const (
-	Namespace             = "CONFIGMAPS_NAMESPACE"
-	TFStateConfigMapsName = "CONFIGMAPS_NAME"
-	TFStateDir            = "TF_STATE_DIR"
-	TFStateName           = "TF_STATE_NAME"
+	Namespace               = "CONFIGMAPS_NAMESPACE"
+	TFStateConfigMapsName   = "CONFIGMAPS_NAME"
+	TFStateDir              = "TF_STATE_DIR"
+	TFStateName             = "TF_STATE_NAME"
+	ConfigurationAPIVersion = "CONFIGURATION_APIVERSION"
+	ConfigurationKind       = "CONFIGURATION_KIND"
+	ConfigurationName       = "CONFIGURATION_NAME"
+	ConfigurationUID        = "CONFIGURATION_UID"
 )
 
 const TerraformStateName = "terraform.tfstate"
@@ -61,8 +67,17 @@ func main() {
 	}
 
 	var tfStateCM = v1.ConfigMap{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
-		ObjectMeta: metav1.ObjectMeta{Name: tfStateConfigMapsName, Namespace: namespace},
+		TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      tfStateConfigMapsName,
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{{
+				APIVersion: os.Getenv(ConfigurationAPIVersion),
+				Kind:       os.Getenv(ConfigurationKind),
+				Name:       os.Getenv(ConfigurationName),
+				UID:        types.UID(os.Getenv(ConfigurationUID)),
+				Controller: pointer.BoolPtr(false),
+			}}},
 	}
 
 	tfStateFile := filepath.Join(tfStateDir, tfStateName)

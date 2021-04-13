@@ -4,11 +4,8 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 	"os"
 	"path/filepath"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -22,10 +19,6 @@ const (
 	TFStateConfigMapsName   = "CONFIGMAPS_NAME"
 	TFStateDir              = "TF_STATE_DIR"
 	TFStateName             = "TF_STATE_NAME"
-	ConfigurationAPIVersion = "CONFIGURATION_APIVERSION"
-	ConfigurationKind       = "CONFIGURATION_KIND"
-	ConfigurationName       = "CONFIGURATION_NAME"
-	ConfigurationUID        = "CONFIGURATION_UID"
 )
 
 const TerraformStateName = "terraform.tfstate"
@@ -71,19 +64,12 @@ func main() {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      tfStateConfigMapsName,
 			Namespace: namespace,
-			OwnerReferences: []metav1.OwnerReference{{
-				APIVersion: os.Getenv(ConfigurationAPIVersion),
-				Kind:       os.Getenv(ConfigurationKind),
-				Name:       os.Getenv(ConfigurationName),
-				UID:        types.UID(os.Getenv(ConfigurationUID)),
-				Controller: pointer.BoolPtr(false),
-			}}},
+		},
 	}
 
 	tfStateFile := filepath.Join(tfStateDir, tfStateName)
 
 	for {
-		time.Sleep(5)
 		fmt.Printf("checking file %s\n", tfStateFile)
 		state, err := ioutil.ReadFile(tfStateFile)
 		if err != nil {
@@ -112,5 +98,4 @@ func main() {
 		}
 		break
 	}
-
 }
